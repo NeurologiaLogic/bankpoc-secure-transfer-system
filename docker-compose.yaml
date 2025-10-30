@@ -1,0 +1,148 @@
+services:
+  # ------------------ DATABASE ------------------
+  postgres:
+    image: postgres:15
+    container_name: bankpoc-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bankpoc
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - banknet
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bankpoc-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - banknet
+
+  # ------------------ CACHE ------------------
+  redis:
+    image: redis:7-alpine
+    container_name: bankpoc-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - banknet
+
+  # ------------------ KAFKA ------------------
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    container_name: bankpoc-zookeeper
+    restart: always
+    ports:
+      - "2181:2181"
+    networks:
+      - banknet
+
+  kafka:
+    image: wurstmeister/kafka:latest
+    container_name: bankpoc-kafka
+    restart: always
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "transactions:1:1"
+      KAFKA_LISTENERS: INSIDE://kafka:9092,OUTSIDE://kafka:9094
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9092,OUTSIDE://kafka:9094
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    depends_on:
+      - zookeeper
+    networks:
+      - banknet
+
+  # ------------------ OBSERVABILITY ------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: bankpoc-prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yaml:/etc/prometheus/prometheus.yml
+    networks:
+      - banknet
+
+  grafana:
+    image: grafana/grafana
+    container_name: bankpoc-grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - banknet
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.58
+    container_name: bankpoc-jaeger
+    restart: always
+    ports:
+      - "16686:16686" # UI
+      - "6831:6831/udp" # Traces
+    networks:
+      - banknet
+
+  # ------------------ (OPTIONAL) LOGGING STACK ------------------
+  elasticsearch:
+    image: elasticsearch:9.2.0
+    container_name: bankpoc-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    networks:
+      - banknet
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  kibana:
+    image: kibana:9.2.0
+    container_name: bankpoc-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - banknet
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:
+
+networks:
+  banknet:
+    driver: bridge
