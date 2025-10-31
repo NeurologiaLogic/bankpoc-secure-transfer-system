@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("user/v1")
 @Validated
 public class UserController {
-
     final UserService userService;
     final PasswordEncoder passwordEncoder;
 

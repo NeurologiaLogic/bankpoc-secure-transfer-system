@@ -7,7 +7,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
@@ -18,6 +17,8 @@ public class UserService {
         User user = User.builder()
                 .email(email)
                 .passwordHash(passwordHash)
+                .phoneNumber(phoneNumber)
+                .fullName(fullName)
                 .build();
         return userRepository.save(user);
     }

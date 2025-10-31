@@ -105,8 +105,10 @@ services:
     container_name: bankpoc-jaeger
     restart: always
     ports:
-      - "16686:16686" # UI
-      - "6831:6831/udp" # Traces
+      - "16686:16686"  # UI
+      - "4317:4317"    # gRPC OTLP receiver
+      - "4318:4318"    # HTTP OTLP receiver
+      - "6831:6831/udp" # Legacy UDP (optional)
     networks:
       - banknet
 
@@ -137,6 +139,19 @@ services:
       - elasticsearch
     networks:
       - banknet
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.2.0
+    container_name: bankpoc-logstash
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    depends_on:
+      - elasticsearch
+    networks:
+      - banknet
+
 
 volumes:
   postgres_data:

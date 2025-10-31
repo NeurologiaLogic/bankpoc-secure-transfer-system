@@ -156,8 +156,13 @@ https://start.spring.io/#!type=maven-project&language=java&platformVersion=3.5.7
 git clone https://github.com/neurologialogic/bank-poc.git
 cd bank-poc
 
+Inside monitoring/prometheus change the Target IP
+Inside the application.yaml at the resource folder 
+change the jaeger ip to your local ip
 # Start infrastructure (Postgres, Redis, Prometheus, Grafana)
 docker compose up -d
+
+Grafana -> 11378 (Spring Boot: https://grafana.com/grafana/dashboards/11378-justai-system-monitor/)
 
 # Run Spring Boot app
 ./mvnw spring-boot:run
