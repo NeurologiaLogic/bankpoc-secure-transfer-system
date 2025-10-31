@@ -3,13 +3,18 @@ spring:
     name:core
 
   datasource:
-    url: jdbc:postgresql://postgres:5432/bankpoc
+    url: jdbc:postgresql://localhost:5432/bankpoc
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
 
+  security:
+    user:
+      name: admin
+      password: admin123
   jpa:
     hibernate:
+#     dev use update / auto and for prod use validate
       ddl-auto: validate
     properties:
       hibernate:

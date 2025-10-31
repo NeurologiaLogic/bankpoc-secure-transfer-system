@@ -9,16 +9,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 
-@Entity
-@Getter
-@Setter
-@Builder
 class Account {
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     String id;
-
-
-
-
 }

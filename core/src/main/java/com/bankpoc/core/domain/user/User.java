@@ -1,34 +1,35 @@
 package com.bankpoc.core.domain.user;
 
-
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Data
 @Builder
-class User {
-
+public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(unique = true, nullable = false)
-    private String email;
-
-    @Column(nullable = false)
-    private String password;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    UUID id;
+    String fullName;
+    String passwordHash;
+    String email;
+    String phoneNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private UserRole role;
+    KycStatus kycStatus;
+    String status;
+    String nationalIdNumber;
+    Instant createdAt;
+    Instant updatedAt;
 
-    private boolean active = true;
-
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = Instant.now();
+    }
 }
