@@ -1,7 +1,7 @@
 services:
   # ------------------ DATABASE ------------------
   postgres:
-    image: postgres:15
+    image: postgres:14
     container_name: bankpoc-postgres
     restart: always
     environment:

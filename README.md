@@ -117,7 +117,18 @@ https://start.spring.io/#!type=maven-project&language=java&platformVersion=3.5.7
 | `util/` | Generic helper or utility classes |
 | `resources/db/migration/` | Flyway scripts for database initialization |
 
+## 🧰 Entity List
+| Entity | Description |
+|--------|-------------|
+|User|	Represents a registered customer (with encrypted password, KYC info, etc.)
+|Account|	Bank account (unique number, balance, currency, type)
+|Card|	Virtual or physical card linked to an account
+|Transaction|	Records all money movement (debit/credit, type, status, timestamps)
+|OTPRequest|	Stores one-time passwords for login, transfer verification
+|AuditLog|	Immutable log of all actions for traceability
+|IdempotencyKey|	Stores processed API keys to avoid double charges
 
+---
 <!-- ## 🧪 Testing Strategy
 
 - **Unit tests:** services, controllers, utils  
@@ -175,24 +186,7 @@ Includes manifests for:
 
 --- -->
 
-## 🧰 Folder Structure
 
-```
-/backend
-  ├── src/main/java/com/bankpoc/
-  │     ├── config/         # Security, datasource, redis, metrics
-  │     ├── controller/     # REST endpoints
-  │     ├── service/        # Business logic
-  │     ├── repository/     # JPA repositories
-  │     ├── dto/            # Request/response models
-  │     ├── job/            # Outbox publisher or async workers
-  ├── src/test/             # Unit & integration tests
-  ├── docker-compose.yml
-  ├── Dockerfile
-  ├── k8s/                  # Deployment manifests
-```
-
----
 
 <!-- ## 📈 Future Extensions
 
