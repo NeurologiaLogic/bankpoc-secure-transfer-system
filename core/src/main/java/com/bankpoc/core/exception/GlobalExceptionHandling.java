@@ -4,6 +4,7 @@ package com.bankpoc.core.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -31,6 +32,14 @@ public class GlobalExceptionHandling {
         Map<String, String> error = new HashMap<>();
         error.put("error", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error); // 409 Conflict
+    }
+
+    // ✅ Handles all other exceptions gracefully
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleUsernameNotFoundException(Exception ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("credentials error", "username or password is invalid!");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     // ✅ Handles all other exceptions gracefully

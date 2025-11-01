@@ -1,39 +1,39 @@
 package com.bankpoc.core.controller;
 
-import com.bankpoc.core.domain.account.Account;
+import com.bankpoc.core.domain.jwt.UserDetails;
 import com.bankpoc.core.domain.user.User;
 import com.bankpoc.core.domain.user.UserService;
-import com.bankpoc.core.dto.user.UserRequest;
+import com.bankpoc.core.dto.user.LoginRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
 
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("user/v1")
+@RequestMapping("users")
 @Validated
 public class UserController {
     final UserService userService;
     final PasswordEncoder passwordEncoder;
 
-    @PostMapping("/register")
-    public String createUser(@Valid @RequestBody UserRequest userRequest) {
-        String hashedPassword = passwordEncoder.encode(userRequest.getPassword());
-        User user = userService.register(userRequest.getFullName(),hashedPassword, userRequest.getEmail(), userRequest.getPhoneNumber());
-        return "User created successfully!";
-    }
+    @GetMapping("/me")
+    public Optional<User> getMyProfile(@AuthenticationPrincipal UserDetails userDetails) {
+        // 1. The @AuthenticationPrincipal annotation injects the UserDetails
+        //    object that your JwtFilter and UserDetailsService created.
 
-    @PostMapping("/login")
-    public String login(@Valid @RequestBody UserRequest userRequest) {
-        String hashedPassword = passwordEncoder.encode(userRequest.getPassword());
-        User user = userService.register(userRequest.getFullName(),hashedPassword, userRequest.getEmail(), userRequest.getPhoneNumber());
-        return "User login successfully!";
-    }
+        // 2. Based on our previous fixes, userDetails.getUsername()
+        //    will return the user's email.
+        String email = userDetails.getUsername();
 
+        // 3. Use your UserService to fetch the complete User object
+        //    from the database and return it.
+        return userService.findByEmail(email);
+    }
 }

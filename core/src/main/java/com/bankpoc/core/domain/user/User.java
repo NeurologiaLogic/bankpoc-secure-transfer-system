@@ -23,7 +23,9 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     KycStatus kycStatus;
-    String status;
+
+    @Enumerated(EnumType.STRING)
+    UserStatus status;
     String nationalIdNumber;
     Instant createdAt;
     Instant updatedAt;
@@ -46,7 +48,7 @@ public class User {
         }
         if (this.status == null) {
             // Example: default status
-            this.status = "ACTIVE";
+            this.status = UserStatus.INACTIVE;
         }
     }
 }
