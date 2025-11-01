@@ -87,21 +87,133 @@ https://start.spring.io/#!type=maven-project&language=java&platformVersion=3.5.7
 
 ---
 
-## ⚙️ API Endpoints
+### 🧭 Core User Flows
 
-| Method | Endpoint | Description |
-|--------|-----------|-------------|
-| POST | `/users/register` | Register new user |
-| POST | `/users/login` | Authenticate (returns JWT) |
-| POST | `/otp/request` | Request OTP (Redis-backed) |
-| POST | `/accounts` | Create new account |
-| GET | `/accounts/{id}` | View account details |
-| GET | `/accounts/{id}/transactions` | Paginated transaction history |
-| POST | `/transactions/transfer` | Perform transfer (idempotent) |
-| POST | `/transactions/deposit` | Deposit funds |
-| POST | `/transactions/withdraw` | Withdraw funds |
-| GET | `/health` | Health check (Actuator) |
-| GET | `/actuator/prometheus` | Prometheus metrics endpoint |
+### **Flow 1: New User Onboarding & Account Creation**
+> Goal: A new user registers, logs in, and is ready for use.
+
+1. **Registration**  
+   `POST /auth/register`  
+   Create `User` record.
+
+
+2. **Auto-account creation**  
+   `POST /accounts`  
+   Default: `type = SAVINGS`, `currency = IDR`, linked to the user.
+
+
+3. **Card provisioning & PIN setup**  
+   `POST /accounts/{accountId}/cards` → Issue (virtual) card  
+   `PUT /cards/{cardId}/pin` → Set PIN for future transactions.
+
+✅ **Outcome:** The new user can log in and transact using their PIN.
+
+---
+
+### **Flow 2: Returning User on a New Device (Device Trust via OTP)**
+> Goal: User logs in from a new or untrusted device and verifies with OTP once.
+
+1. **Login attempt**
+
+    `POST /auth/login`  
+➡️ System checks: new device or missing trust flag.
+
+2. Request OTP
+`POST /auth/otp/request` with `{"purpose": "DEVICE_TRUST"}`  
+➡️ OTP stored (Redis), sent to user’s phone/email.
+
+3. Verify OTP
+`POST /auth/otp/verify`  
+➡️ On success: device marked trusted, JWT returned.
+
+✅ **Outcome:** OTP is used once per device. Subsequent logins skip OTP (via JWT token + trusted device).
+
+---
+
+### **Flow 3: Secure Money Transfer**
+> User transfers funds to a beneficiary using a PIN — no OTP per transfer.
+
+1. Optional: Add beneficiary
+
+    `POST /users/me/beneficiaries`  
+
+    `{"name": "Jane", "accountNumber": "...", "accountId": "..."}`
+
+2. Initiate transfer
+`POST /transactions`  
+Request body:
+    ```json
+    {
+      "type": "TRANSFER",
+      "fromAccountId": "<user-account-uuid>",
+      "toAccountId": "<beneficiary-account-uuid>",
+      "amount": 100000,
+      "currency": "IDR",
+      "idempotencyKey": "<unique-key>",
+      "security": {
+        "pin": "4321"
+      }
+    }
+    ```
+
+    #### Backend Atomic Process:
+   - Validate card PIN.
+   - Lock both accounts (e.g., `FOR UPDATE`).
+   - Debit & Credit in a single database transaction.
+   - Write to `transactions` and `account_ledgers` tables.
+
+✅ **Outcome:** Fast, PIN-secured transfer; no OTP friction for everyday usage.
+
+---
+
+### **Flow 4: View Dashboard & Transaction History**
+> User opens the app to view balances and recent activity.
+
+`GET /users/me` → User info  
+`GET /accounts` → List of accounts + balances  
+`GET /accounts/{accountId}/transactions` → Paginated list  
+`GET /transactions/{transactionId}` → Detailed info
+
+✅ **Outcome:** Real-time overview and history.
+
+---
+
+### **Flow 5: Card Management**
+> User manages their card lifecycle (issue, block, PIN change).
+
+`GET /accounts/{accountId}/cards` → List cards  
+`POST /accounts/{accountId}/cards` → Request new virtual/physical card  
+`PUT /cards/{cardId}/pin` → Change PIN  
+`PUT /cards/{cardId}/status` → Example: `{"action": "BLOCK"}`
+
+✅ **Outcome:** Full card lifecycle control.
+
+---
+
+### **Flow 6: Observability & Audit**
+> Admin or ops teams monitor status, metrics, and logs.
+
+`GET /health` → Application health (Actuator)  
+`GET /actuator/prometheus` → Metrics endpoint  
+`GET /admin/audit-logs` → Immutable audit trail
+
+✅ **Outcome:** Operational visibility, audit readiness.
+
+---
+
+## ⚙️ API Endpoint Groups
+
+| Group | Endpoints | Purpose |
+|--------|------------|----------|
+| **Auth** | `POST /auth/register`<br>`POST /auth/login`<br>`POST /auth/otp/request`<br>`POST /auth/otp/verify` | User registration, login, and device trust via OTP |
+| **Users** | `GET /users/me`<br>`PUT /users/me`<br>`POST /users/me/kyc` | Profile management and KYC |
+| **Beneficiaries** | `GET /users/me/beneficiaries`<br>`POST /users/me/beneficiaries`<br>`DELETE /users/me/beneficiaries/{id}` | Manage trusted recipients |
+| **Accounts** | `POST /accounts`<br>`GET /accounts`<br>`GET /accounts/{id}` | Bank account lifecycle |
+| **Cards** | `GET /accounts/{id}/cards`<br>`POST /accounts/{id}/cards`<br>`PUT /cards/{id}/pin`<br>`PUT /cards/{id}/status` | Card issuance, PIN management, blocking |
+| **Transactions** | `POST /transactions`<br>`GET /accounts/{id}/transactions`<br>`GET /transactions/{id}` | Transfers, history, detail view |
+| **System / Admin** | `GET /health`<br>`GET /actuator/prometheus`<br>`GET /admin/audit-logs` | Observability, monitoring, audit |
+
+---
 
 ---
 

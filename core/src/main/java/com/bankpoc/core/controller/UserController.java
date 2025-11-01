@@ -1,5 +1,6 @@
 package com.bankpoc.core.controller;
 
+import com.bankpoc.core.domain.account.Account;
 import com.bankpoc.core.domain.user.User;
 import com.bankpoc.core.domain.user.UserService;
 import com.bankpoc.core.dto.user.UserRequest;
@@ -21,13 +22,18 @@ public class UserController {
     final UserService userService;
     final PasswordEncoder passwordEncoder;
 
-    @PostMapping("/create")
+    @PostMapping("/register")
     public String createUser(@Valid @RequestBody UserRequest userRequest) {
         String hashedPassword = passwordEncoder.encode(userRequest.getPassword());
         User user = userService.register(userRequest.getFullName(),hashedPassword, userRequest.getEmail(), userRequest.getPhoneNumber());
         return "User created successfully!";
     }
 
-
+    @PostMapping("/login")
+    public String login(@Valid @RequestBody UserRequest userRequest) {
+        String hashedPassword = passwordEncoder.encode(userRequest.getPassword());
+        User user = userService.register(userRequest.getFullName(),hashedPassword, userRequest.getEmail(), userRequest.getPhoneNumber());
+        return "User login successfully!";
+    }
 
 }

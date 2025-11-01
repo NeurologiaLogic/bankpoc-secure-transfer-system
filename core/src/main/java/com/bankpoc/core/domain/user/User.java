@@ -32,4 +32,21 @@ public class User {
     public void preUpdate() {
         updatedAt = Instant.now();
     }
+
+    @PrePersist
+    public void prePersist() {
+        Instant now = Instant.now();
+        this.createdAt = now;
+        this.updatedAt = now; // Set updatedAt on creation as well
+
+        // Set defaults only if they are not provided
+        if (this.kycStatus == null) {
+            // Assuming you have an enum value like NOT_STARTED
+            this.kycStatus = KycStatus.PENDING;
+        }
+        if (this.status == null) {
+            // Example: default status
+            this.status = "ACTIVE";
+        }
+    }
 }

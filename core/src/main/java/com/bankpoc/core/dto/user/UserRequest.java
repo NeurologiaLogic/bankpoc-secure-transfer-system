@@ -1,6 +1,7 @@
 package com.bankpoc.core.dto.user;
 
 
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -18,6 +19,7 @@ public class UserRequest {
     @Email(message = "Email should be valid")
     private String email;
 
+    @NotBlank(message = "Phone Number is Required")
     private String phoneNumber;
 
     // getters & setters
