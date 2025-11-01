@@ -5,10 +5,6 @@
 This project is designed for **engineers, recruiters, and portfolio reviewers** who want to see how a single developer can build a bank-grade architecture with modern infrastructure and clean implementation.
 
 ---
-
-## 🚀 Springboot Template
-https://start.spring.io/#!type=maven-project&language=java&platformVersion=3.5.7&packaging=jar&configurationFileFormat=properties&jvmVersion=21&groupId=com.bankpoc&artifactId=core&name=core&description=Core%20banking%20service%20built%20with%20Spring%20Boot%2C%20providing%20foundation%20for%20account%2C%20transaction%2C%20and%20customer%20modules.&packageName=com.bankpoc.core&dependencies=devtools,lombok,modulith,web,security,flyway,data-redis,data-elasticsearch,data-jpa,batch,actuator,kafka,prometheus,restdocs,cloud-resilience4j
-
 ✅ **Secure Transfers** — Atomic debit/credit with ACID PostgreSQL transactions  
 ✅ **Idempotency** — Safe retry logic via unique keys  
 ✅ **Optimistic & Pessimistic Locking** — No race conditions, even under load  
@@ -90,47 +86,88 @@ https://start.spring.io/#!type=maven-project&language=java&platformVersion=3.5.7
 ### 🧭 Core User Flows
 
 ### **Flow 1: New User Onboarding & Account Creation**
-> Goal: A new user registers, logs in, and is ready for use.
+> Goal: A new user registers, but their account remains inactive until KYC is verified.
 
 1. **Registration**  
-   `POST /auth/register`  
-   Create `User` record.
+   `POST /auth/register`
+    - Creates a new `User` record with:
+        - `kyc_status = 'PENDING'`
+        - `status = 'INACTIVE'`
+    - Automatically creates a linked `Account` record:
+        - `status = 'INACTIVE'`
+    - Automatically provisions a virtual card:
+        - `pin_hash = NULL` (cannot set PIN until KYC verified)
 
-
-2. **Auto-account creation**  
-   `POST /accounts`  
-   Default: `type = SAVINGS`, `currency = IDR`, linked to the user.
-
-
-3. **Card provisioning & PIN setup**  
-   `POST /accounts/{accountId}/cards` → Issue (virtual) card  
-   `PUT /cards/{cardId}/pin` → Set PIN for future transactions.
-
-✅ **Outcome:** The new user can log in and transact using their PIN.
+✅ **Outcome:**  
+User is created but cannot set a PIN or transact until KYC verification is approved.
 
 ---
 
-### **Flow 2: Returning User on a New Device (Device Trust via OTP)**
-> Goal: User logs in from a new or untrusted device and verifies with OTP once.
+### **Flow 2: KYC Verification & Account Activation**
+> Goal: Admin verifies the user's identity, activating their account.
 
-1. **Login attempt**
+1. **User submits KYC documents**  
+   `POST /users/me/kyc`
+    - Uploads ID card, selfie, or required info.
 
-    `POST /auth/login`  
-➡️ System checks: new device or missing trust flag.
+2. **Admin review and approval**  
+   `PUT /admin/users/{userId}/kyc-approve`
+    - Admin verifies documents and sets:
+        - `users.kyc_status = 'VERIFIED'`
+        - `users.status = 'ACTIVE'`
+        - All linked accounts `status = 'ACTIVE'`
 
-2. Request OTP
-`POST /auth/otp/request` with `{"purpose": "DEVICE_TRUST"}`  
-➡️ OTP stored (Redis), sent to user’s phone/email.
-
-3. Verify OTP
-`POST /auth/otp/verify`  
-➡️ On success: device marked trusted, JWT returned.
-
-✅ **Outcome:** OTP is used once per device. Subsequent logins skip OTP (via JWT token + trusted device).
+✅ **Outcome:**  
+User’s account is now fully active and eligible to set a PIN and transact.
 
 ---
 
-### **Flow 3: Secure Money Transfer**
+### **Flow 3: PIN Setup Wall (After KYC)**
+> Goal: Enforce PIN setup for card-based authentication after KYC.
+
+1. **Login**  
+   `POST /auth/login`
+    - If user is **inactive**, reject with message:  
+      _"Account inactive. Complete KYC verification."_
+
+    - If user is **active but has no PIN**, issue JWT with claim:  
+      `"pin_status": "REQUIRED"`
+
+2. **Set PIN**  
+   `PUT /cards/{cardId}/pin`
+    - User sets a secure transaction PIN.
+    - System hashes and stores the PIN.
+
+✅ **Outcome:**  
+User’s account is now PIN-enabled and ready for transactions.
+
+---
+
+### **Flow 4: Returning User on a New Device (Device Trust via OTP)**
+> Goal: Prevent unauthorized logins from untrusted devices.
+
+1. **Login attempt**  
+   `POST /auth/login`
+    - System checks if the device (via fingerprint or hash of `User-Agent`) is trusted.
+
+2. **If device is untrusted or first login:**  
+   `POST /auth/otp/request` with  
+   `{"purpose": "DEVICE_TRUST"}`
+    - OTP sent to user’s registered phone/email.
+
+3. **Verify OTP**  
+   `POST /auth/otp/verify`
+    - Upon success:
+        - Adds record to `user_devices` table:
+            - `is_trusted = TRUE`
+            - `first_login_at` and `last_login_at` timestamps updated
+        - JWT issued for session access
+
+✅ **Outcome:**  
+Device is marked trusted. Future logins skip OTP unless device changes.
+
+---
+### **Flow 5: Secure Money Transfer**
 > User transfers funds to a beneficiary using a PIN — no OTP per transfer.
 
 1. Optional: Add beneficiary
@@ -166,7 +203,7 @@ Request body:
 
 ---
 
-### **Flow 4: View Dashboard & Transaction History**
+### **Flow 6: View Dashboard & Transaction History**
 > User opens the app to view balances and recent activity.
 
 `GET /users/me` → User info  
@@ -178,19 +215,19 @@ Request body:
 
 ---
 
-### **Flow 5: Card Management**
+### **Flow 7: Card Management**
 > User manages their card lifecycle (issue, block, PIN change).
 
 `GET /accounts/{accountId}/cards` → List cards  
 `POST /accounts/{accountId}/cards` → Request new virtual/physical card  
-`PUT /cards/{cardId}/pin` → Change PIN  
+`PUT /cards/{cardId}/pin` → Change PIN  (This probably won't be implemented)
 `PUT /cards/{cardId}/status` → Example: `{"action": "BLOCK"}`
 
 ✅ **Outcome:** Full card lifecycle control.
 
 ---
 
-### **Flow 6: Observability & Audit**
+### **Flow 8: Observability & Audit**
 > Admin or ops teams monitor status, metrics, and logs.
 
 `GET /health` → Application health (Actuator)  
@@ -205,13 +242,15 @@ Request body:
 
 | Group | Endpoints | Purpose |
 |--------|------------|----------|
-| **Auth** | `POST /auth/register`<br>`POST /auth/login`<br>`POST /auth/otp/request`<br>`POST /auth/otp/verify` | User registration, login, and device trust via OTP |
-| **Users** | `GET /users/me`<br>`PUT /users/me`<br>`POST /users/me/kyc` | Profile management and KYC |
-| **Beneficiaries** | `GET /users/me/beneficiaries`<br>`POST /users/me/beneficiaries`<br>`DELETE /users/me/beneficiaries/{id}` | Manage trusted recipients |
-| **Accounts** | `POST /accounts`<br>`GET /accounts`<br>`GET /accounts/{id}` | Bank account lifecycle |
-| **Cards** | `GET /accounts/{id}/cards`<br>`POST /accounts/{id}/cards`<br>`PUT /cards/{id}/pin`<br>`PUT /cards/{id}/status` | Card issuance, PIN management, blocking |
+| **Auth** | `POST /auth/register`<br>`POST /auth/login`<br>`POST /auth/otp/request`<br>`POST /auth/otp/verify` | Registration, login, OTP verification, and device trust |
+| **Users** | `GET /users/me`<br>`PUT /users/me`<br>`POST /users/me/kyc` | Profile management and KYC submission |
+| **Admin** | `PUT /admin/users/{userId}/kyc-approve` | Admin verifies KYC and activates user accounts |
+| **Devices** | `GET /users/me/devices`<br>`DELETE /users/me/devices/{deviceId}` | View and revoke trusted devices |
+| **Accounts** | `POST /accounts`<br>`GET /accounts`<br>`GET /accounts/{id}` | Account lifecycle management |
+| **Cards** | `GET /accounts/{id}/cards`<br>`POST /accounts/{id}/cards`<br>`PUT /cards/{id}/pin`<br>`PUT /cards/{id}/status` | Card creation, PIN setup, blocking |
 | **Transactions** | `POST /transactions`<br>`GET /accounts/{id}/transactions`<br>`GET /transactions/{id}` | Transfers, history, detail view |
-| **System / Admin** | `GET /health`<br>`GET /actuator/prometheus`<br>`GET /admin/audit-logs` | Observability, monitoring, audit |
+| **Beneficiaries** | `GET /users/me/beneficiaries`<br>`POST /users/me/beneficiaries`<br>`DELETE /users/me/beneficiaries/{id}` | Manage trusted recipients |
+| **System / Observability** | `GET /health`<br>`GET /actuator/prometheus`<br>`GET /admin/audit-logs` | Monitoring, metrics, audit logs |
 
 ---
 
