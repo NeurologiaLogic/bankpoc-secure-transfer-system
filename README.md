@@ -363,5 +363,5 @@ Includes manifests for:
 ---
 
 ## 📜 License
-
-MIT License © 2025 Patrick Kwon
+Licensed under the Apache License, Version 2.0 © 2025 Patrick Kwon  
+See [LICENSE](./LICENSE) for details.
