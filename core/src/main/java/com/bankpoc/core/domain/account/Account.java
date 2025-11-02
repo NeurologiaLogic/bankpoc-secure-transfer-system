@@ -1,8 +1,11 @@
 package com.bankpoc.core.domain.account;
 
+import com.bankpoc.core.domain.card.Card;
 import com.bankpoc.core.domain.transaction.TransactionType;
 import com.bankpoc.core.domain.user.User;
 import com.bankpoc.core.domain.user.UserStatus;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,7 +27,12 @@ public class Account {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    User userId;
+    @JsonBackReference
+    User user;
+
+    @OneToOne(mappedBy = "account",fetch = FetchType.LAZY,cascade = CascadeType.ALL)
+    @JsonManagedReference
+    Card card;
 
     // --- FIX 1: Use BigDecimal for NUMERIC/currency ---
     BigDecimal balance;

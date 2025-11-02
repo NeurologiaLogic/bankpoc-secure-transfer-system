@@ -1,4 +1,4 @@
-package com.bankpoc.core.dto.user;
+package com.bankpoc.core.dto.auth;
 
 
 import jakarta.validation.constraints.Email;

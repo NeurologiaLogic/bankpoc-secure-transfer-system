@@ -4,6 +4,7 @@ package com.bankpoc.core.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -35,17 +36,24 @@ public class GlobalExceptionHandling {
     }
 
     // ✅ Handles all other exceptions gracefully
-    @ExceptionHandler(UsernameNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleUsernameNotFoundException(Exception ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("credentials error", "username or password is invalid!");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
+        // NOTE: For security, don't return the exact internal error message (ex.getMessage())
+        // to the client, as it might reveal too much info.
+        log.warn("Authentication failed for user: {}", ex.getMessage());
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid credentials."
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
     // ✅ Handles all other exceptions gracefully
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
+        log.error("An unhandled internal server error occurred:", ex);
         Map<String, String> error = new HashMap<>();
+        // NOTE: Keep the message generic for the client (security best practice)
         error.put("error", "Internal server error");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }

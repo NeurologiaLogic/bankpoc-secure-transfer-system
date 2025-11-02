@@ -1,9 +1,12 @@
 package com.bankpoc.core.domain.user;
 
+import com.bankpoc.core.domain.account.Account;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -29,6 +32,10 @@ public class User {
     String nationalIdNumber;
     Instant createdAt;
     Instant updatedAt;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    private List<Account> accounts;
 
     @PreUpdate
     public void preUpdate() {

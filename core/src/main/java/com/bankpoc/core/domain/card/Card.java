@@ -1,6 +1,7 @@
 package com.bankpoc.core.domain.card;
 
 import com.bankpoc.core.domain.account.Account;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,12 +19,12 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Card {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JsonBackReference
     @JoinColumn(name = "account_id")
     private Account account;
 
@@ -41,7 +42,7 @@ public class Card {
     @Column(name = "expiry_date", nullable = false)
     private LocalDate expiryDate;
 
-    @Column(name = "pin_hash", length = 255, nullable = false)
+    @Column(name = "pin_hash", length = 255, nullable = true)
     private String pinHash;
 
     @Column(name = "created_at", updatable = false)
@@ -57,7 +58,7 @@ public class Card {
         }
 
         if (this.status == null) {
-            this.status = CardStatus.ACTIVE;
+            this.status = CardStatus.INACTIVE;
         }
     }
 }
