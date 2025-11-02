@@ -1,26 +1,25 @@
 package com.bankpoc.core.controller;
 
-import com.bankpoc.core.domain.account.Account;
 import com.bankpoc.core.domain.account.AccountService;
-import com.bankpoc.core.domain.card.Card;
+import com.bankpoc.core.domain.beneficiary.Beneficiary;
+import com.bankpoc.core.domain.beneficiary.BeneficiaryService;
 import com.bankpoc.core.domain.card.CardService;
 import com.bankpoc.core.domain.jwt.UserDetails;
 import com.bankpoc.core.domain.user.User;
 import com.bankpoc.core.domain.user.UserService;
-import com.bankpoc.core.dto.user.UserInformation;
-import com.bankpoc.core.exception.ErrorResponse;
+import com.bankpoc.core.dto.beneficiary.BeneficiaryRequest;
+import com.bankpoc.core.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
-
 
 @RestController
 @RequiredArgsConstructor
@@ -28,59 +27,94 @@ import java.util.Optional;
 @Validated
 @Slf4j
 public class UserController {
-    final UserService userService;
-    final AccountService accountService;
-    final CardService cardService;
-    final PasswordEncoder passwordEncoder;
 
-//    @GetMapping("/me")
-//    public ResponseEntity<UserInformation> getMyProfile(@AuthenticationPrincipal UserDetails userDetails) {
-//        String email = userDetails.getUsername();
-//        Optional<User> userOptional = userService.findByEmail(email);
-//        if (userOptional.isEmpty()) {
-//            log.warn("User not found for authenticated email: {}", email);
-//            throw new UsernameNotFoundException("User not found for authenticated email: " + email);
-//        }
-//
-//        User user = userOptional.get();
-//
-//        // 2. Fetch Account (Optional)
-//        // We chain the calls safely using Optional.flatMap for better performance and readability
-//        Optional<Account> accountOptional = accountService.getAccountByUser(user);
-//
-//        // 3. Fetch Card based on Account (Optional)
-//        // flatMap allows us to chain Optional calls without checking for isPresent()
-//        Optional<Card> cardOptional = accountOptional
-//                .flatMap(account -> cardService.getCardByAccount(account));
-//
-//        // 4. Extract data and build the DTO
-//        UserInformation userInformation = UserInformation.builder()
-//                .user(user)
-//                .account(accountOptional.orElse(null)) // Pass Account if present, otherwise null
-//                .card(cardOptional.orElse(null))       // Pass Card if present, otherwise null
-//                .build();
-//
-//        // 5. Return 200 OK with the consolidated DTO
-//        return ResponseEntity.ok(userInformation);
-//    }
+    private final UserService userService;
+    private final AccountService accountService;
+    private final BeneficiaryService beneficiaryService;
+    private final CardService cardService;
+    private final PasswordEncoder passwordEncoder;
+
     @GetMapping("/me")
     public ResponseEntity<User> getMyProfile(@AuthenticationPrincipal UserDetails userDetails) {
         String email = userDetails.getUsername();
+        log.info("Fetching profile for user: {}", email);
 
-        // **EFFICIENT FETCHING:**
-        // Instead of fetching User, then Account, then Card in separate queries (N+2 problem),
-        // we assume a new UserService method exists that uses a JOIN FETCH query
-        // to retrieve the User, Account, and Card in a single database round trip.
-        // This is the most efficient approach.
+        try {
+            Optional<User> userOptional = userService.findUserWithAccountAndCardByEmail(email);
 
-        Optional<User> userOptional = userService.findUserWithAccountAndCardByEmail(email);
+            if (userOptional.isEmpty()) {
+                log.warn("User profile not found for authenticated email: {}", email);
+                throw new ApiException(HttpStatus.NOT_FOUND, "User profile not found");
+            }
 
-        if (userOptional.isEmpty()) {
-            log.warn("User profile not found for authenticated email: {}", email);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            log.info("Profile retrieved successfully for user: {}", email);
+            return ResponseEntity.ok(userOptional.get());
+
+        } catch (ApiException e) {
+            log.error("API error fetching profile for {}: {}", email, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error fetching profile for {}: {}", email, e.getMessage(), e);
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch user profile");
         }
+    }
 
-        // Return 200 OK with the consolidated DTO
-        return ResponseEntity.ok(userOptional.get());
+    @GetMapping("/me/beneficiary")
+    public ResponseEntity<List<Beneficiary>> getAllBeneficiaries(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(required = false) String bankCode) {
+
+        String email = userDetails.getUsername();
+        log.info("Fetching beneficiaries for user: {}, bankCode filter: {}", email, bankCode);
+
+        try {
+            Optional<List<Beneficiary>> beneficiaries =
+                    (bankCode != null)
+                            ? beneficiaryService.getByUserEmailAndBankCode(email, bankCode)
+                            : beneficiaryService.getByUserEmail(email);
+
+            if (beneficiaries.isEmpty() || beneficiaries.get().isEmpty()) {
+                log.warn("No beneficiaries found for user: {}", email);
+                throw new ApiException(HttpStatus.NOT_FOUND, "No beneficiaries found");
+            }
+
+            log.info("Beneficiaries retrieved successfully for user: {}", email);
+            return ResponseEntity.ok(beneficiaries.get());
+
+        } catch (ApiException e) {
+            log.error("API error fetching beneficiaries for {}: {}", email, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error fetching beneficiaries for {}: {}", email, e.getMessage(), e);
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to fetch beneficiaries");
+        }
+    }
+
+    @PostMapping("/me/beneficiary")
+    public ResponseEntity<Beneficiary> addBeneficiary(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody BeneficiaryRequest request) {
+
+        String email = userDetails.getUsername();
+        log.info("Adding beneficiary for user: {}, request: {}", email, request);
+
+        try {
+            Optional<Beneficiary> saved = beneficiaryService.addBeneficiary(email, request);
+
+            if (saved.isEmpty()) {
+                log.warn("Failed to add beneficiary for user: {}", email);
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Failed to add beneficiary");
+            }
+
+            log.info("Beneficiary added successfully for user: {}", email);
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved.get());
+
+        } catch (ApiException e) {
+            log.error("API error adding beneficiary for {}: {}", email, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error adding beneficiary for {}: {}", email, e.getMessage(), e);
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Error adding beneficiary");
+        }
     }
 }

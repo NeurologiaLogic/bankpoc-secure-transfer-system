@@ -2,6 +2,7 @@ package com.bankpoc.core.domain.jwt;
 
 import com.bankpoc.core.domain.user.User;
 import com.bankpoc.core.domain.user.UserRepository;
+import com.bankpoc.core.exception.ApiException;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -21,7 +22,7 @@ public class UserDetailsService implements org.springframework.security.core.use
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         Optional<User> userInfo = userRepository.findByEmail(email);
         if (userInfo.isEmpty()) {
-            throw new UsernameNotFoundException("User not found with email: " + email);
+            throw ApiException.notFound("User not found with email: " + email);
         }
         User user = userInfo.get();
         return new com.bankpoc.core.domain.jwt.UserDetails(user);

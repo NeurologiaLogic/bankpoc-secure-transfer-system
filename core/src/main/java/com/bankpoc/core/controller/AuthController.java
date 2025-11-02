@@ -39,7 +39,7 @@ public class AuthController {
     @PostMapping("/register")
     public String createUser(@Valid @RequestBody RegisterRequest userRequest) {
         String hashedPassword = passwordEncoder.encode(userRequest.getPassword());
-        User user = userService.register(userRequest.getFullName(),hashedPassword, userRequest.getEmail(), userRequest.getPhoneNumber());
+        userService.register(userRequest.getFullName(),hashedPassword, userRequest.getEmail(), userRequest.getPhoneNumber());
         return "User, Account, and Card created successfully!";
     }
 

@@ -38,7 +38,11 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
 
                         // Role-based endpoints
-                        .requestMatchers("/auth/user/**").hasAuthority("ROLE_USER")
+                        .requestMatchers("/auth/users/**").hasAuthority("ROLE_USER")
+                        .requestMatchers("/auth/transactions/**").hasAuthority("ROLE_USER")
+                        .requestMatchers("/auth/otp/**").hasAuthority("ROLE_USER")
+                        .requestMatchers("/auth/card/**").hasAuthority("ROLE_USER")
+
                         .requestMatchers("/auth/admin/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated()
                 )
